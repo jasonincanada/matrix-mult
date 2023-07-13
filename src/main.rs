@@ -41,7 +41,7 @@ fn scalar_mult(c     : i32,
 
         // 1. Sort: sort by the element only, the order we store the pointers in doesn't matter
         //          since they are all random-access writes in step 5
-        indexed.sort_by(|(_,u1), (_,u2)| u1.cmp(u2));
+        indexed.sort_by(|(_,e1), (_,e2)| e1.cmp(e2));
 
         // build a map from each element to a list of places it occurred in the vector
         let pointers: Vec<(i32, Vec<usize>)> = group_indices_by_elem(indexed);
