@@ -47,7 +47,7 @@ fn scalar_mult(c     : i32,
         let pointers: Vec<(i32, Vec<usize>)> = group(indexed);
 
         // 2. Differences: build the differences vector D
-        let elems: Vec<&i32> = pointers.iter().map(|(elem,_)| elem).collect();
+        let elems = pointers.iter().map(|(elem,_)| *elem);
         let diffs: Vec<i32> = take_diffs(elems);
 
         // 3. Recursion: the recursive step, return D'
@@ -83,17 +83,26 @@ fn group(indexed: Vec< (usize,i32) >) -> Vec< (i32,Vec<usize>) >
     result
 }
 
-// https://chat.openai.com/share/43a45a33-ddd4-4ce1-92d8-db18f3df4574
-fn take_diffs(v: Vec<&i32>) -> Vec<i32> {
-    let mut diff: Vec<i32> = Vec::new();
-    for i in 0..v.len() {
-        if i == 0 {
-            diff.push(v[i].clone());
-        } else {
-            diff.push(v[i] - v[i-1]);
+// copy the first element of an i32 iterator then take the diffs
+// between subsequent pairs of elements
+fn take_diffs<I>(mut iter: I) -> Vec<i32>
+where
+    I: Iterator<Item=i32>
+{
+    let mut diffs: Vec<i32> = Vec::new();
+
+    if let Some(first) = iter.next() {
+        // copy the first element
+        diffs.push(first);
+
+        // take diffs of the rest
+        let mut prev = first;
+        for num in iter {
+            diffs.push(num - prev);
+            prev = num;
         }
     }
-    diff
+    diffs
 }
 
 // https://chat.openai.com/share/a383c128-503f-476c-a8b7-883f92e4bb5d
@@ -147,29 +156,29 @@ mod tests {
 
     #[test]
     fn test_diff_vec_normal() {
-        let v = vec![&1, &2, &4, &7, &11, &16];
-        let diff = take_diffs(v);
+        let v = vec![1, 2, 4, 7, 11, 16];
+        let diff = take_diffs(v.into_iter());
         assert_eq!(diff, vec![1, 1, 2, 3, 4, 5]);
     }
 
     #[test]
     fn test_diff_vec_empty() {
-        let v: Vec<&i32> = Vec::new();
-        let diff = take_diffs(v);
+        let v: Vec<i32> = Vec::new();
+        let diff = take_diffs(v.into_iter());
         assert_eq!(diff, Vec::new());
     }
 
     #[test]
     fn test_diff_vec_single_element() {
-        let v = vec![&10];
-        let diff = take_diffs(v);
+        let v = vec![10];
+        let diff = take_diffs(v.into_iter());
         assert_eq!(diff, vec![10]);
     }
 
     #[test]
     fn test_diff_vec_negatives() {
-        let v = vec![&5, &-3, &-8, &1];
-        let diff = take_diffs(v);
+        let v = vec![5, -3, -8, 1];
+        let diff = take_diffs(v.into_iter());
         assert_eq!(diff, vec![5, -8, -5, 9]);
     }
 
