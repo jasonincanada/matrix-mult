@@ -43,8 +43,8 @@ fn scalar_mult(c     : i32,
         //          since they are all random-access writes in step 5
         indexed.sort_by(|(_,u1), (_,u2)| u1.cmp(u2));
 
-        // build a map of pointers from each element to where it occurred in the original vector
-        let pointers: Vec<(i32, Vec<usize>)> = group(indexed);
+        // build a map from each element to a list of places it occurred in the vector
+        let pointers: Vec<(i32, Vec<usize>)> = group_indices_by_elem(indexed);
 
         // 2. Differences: build the differences vector D
         let elems = pointers.iter().map(|(elem,_)| *elem);
@@ -71,7 +71,7 @@ fn scalar_mult(c     : i32,
 }
 
 // https://chat.openai.com/share/794ee6d1-868c-4417-bb31-c9bce2907273
-fn group(indexed: Vec< (usize,i32) >) -> Vec< (i32,Vec<usize>) >
+fn group_indices_by_elem(indexed: Vec<(usize,i32)>) -> Vec<(i32,Vec<usize>)>
 {
     let mut result: Vec<(i32,Vec<usize>)> = vec![];
     for (i, elem) in indexed {
@@ -131,7 +131,7 @@ fn accumulate(vector: Vec<i32>) -> Vec<i32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{scalar_mult, group, take_diffs, accumulate};
+    use super::{scalar_mult, group_indices_by_elem, take_diffs, accumulate};
 
     #[test]
     fn test() {
@@ -151,7 +151,7 @@ mod tests {
                         (4, vec![2]),
                         (5, vec![4]),
                         (9, vec![5]),],
-                    group(vec![(1,1), (3,1), (0,3), (2,4), (4,5), (5,9)]));
+                    group_indices_by_elem(vec![(1,1), (3,1), (0,3), (2,4), (4,5), (5,9)]));
     }
 
     #[test]
