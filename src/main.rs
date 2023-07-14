@@ -74,10 +74,10 @@ fn go(    c     : i32,
                 .enumerate()
                 .collect();
 
-        for (k, (_, is)) in pointers.into_iter().enumerate() {
-            for i in is {
-                let (j, _) = scaled[i];
-                scaled[i] = (j, cs[k]);
+        for (k, (_, ps)) in pointers.into_iter().enumerate() {
+            for p in ps {
+                let (i, _) = scaled[p];
+                scaled[p] = (i, cs[k]);
             }
         }
 
