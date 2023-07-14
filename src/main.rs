@@ -20,31 +20,42 @@ fn main()
 fn scalar_mult(c     : i32,
                vector: Vec<i32>) -> Vec<i32>
 {
+    // add an index to remember the elements' original locations and to get the
+    // vector into the right shape for go(c, _)
+    let indexed: Vec<(usize, i32)> =
+        vector.into_iter()
+              .enumerate()
+              .collect();
+
+    go(c, indexed)
+        .into_iter()
+        .map(|(_, elem)| elem)
+        .collect()
+}
+
+fn go(    c     : i32,
+      mut vector: Vec<(usize,i32)>) -> Vec<(usize,i32)>
+{
     // base case, one element left in the vector
     if vector.len() == 1
     {
         // TODO: replace with something like russian peasants algo for a true addition-only
         //       implementation on a chip, but a normal multiplication here will do
-        vec![ c*vector[0] ]
+        let (_, elem) = vector[0];
+        vec![ (0, c*elem) ]
     }
     else
     {
         let len = vector.len();
 
-        // add an index to remember the elements' original locations
-        let mut indexed: Vec<(usize, i32)> =
-            vector.into_iter()
-                  .enumerate()
-                  .collect();
-
         // the step numbers below match the paper on page 3
 
         // 1. Sort: sort by the element only, the order we store the pointers in doesn't matter
         //          since they are all random-access writes in step 5
-        indexed.sort_by(|(_,e1), (_,e2)| e1.cmp(e2));
+        vector.sort_by(|(_,e1), (_,e2)| e1.cmp(e2));
 
         // build a map from each element to a list of places it occurred in the vector
-        let pointers: Vec<(i32, Vec<usize>)> = group_indices_by_elem(indexed);
+        let pointers: Vec<(i32, Vec<usize>)> = group_indices_by_elem(vector);
 
         // 2. Differences: build the differences vector D
         let elems = pointers.iter().map(|(elem,_)| *elem);
@@ -58,11 +69,15 @@ fn scalar_mult(c     : i32,
 
         // 5. Follow pointers: populate the final, scaled vector V' from elements of S'
         //    situating them according to the original pointer map we built
-        let mut scaled: Vec<i32> = vec![ 0; len ];
+        let mut scaled: Vec<(usize,i32)> =
+            (0..len as i32)
+                .enumerate()
+                .collect();
 
         for (k, (_, is)) in pointers.into_iter().enumerate() {
             for i in is {
-                scaled[i] = cs[k]
+                let (j, _) = scaled[i];
+                scaled[i] = (j, cs[k]);
             }
         }
 
