@@ -99,6 +99,20 @@ fn group_indices_by_elem(indexed: Vec<(usize,i32)>) -> Vec<(i32,Vec<usize>)>
     result
 }
 
+// https://chat.openai.com/share/a383c128-503f-476c-a8b7-883f92e4bb5d
+fn accumulate<I>(numbers: I) -> Vec<i32>
+where
+    I: Iterator<Item=i32>
+{
+    let mut result: Vec<i32> = Vec::new();
+    numbers.scan(0, |state, el| {
+                        *state += el;
+                        Some(*state)
+                    })
+           .for_each(|x| result.push(x));
+    result
+}
+
 
 /* TakeDiffs iterator */
 
@@ -138,20 +152,6 @@ where
         iter,
         previous: None
     }
-}
-
-// https://chat.openai.com/share/a383c128-503f-476c-a8b7-883f92e4bb5d
-fn accumulate<I>(numbers: I) -> Vec<i32>
-where
-    I: Iterator<Item=i32>
-{
-    let mut result: Vec<i32> = Vec::new();
-    numbers.scan(0, |state, el| {
-                        *state += el;
-                        Some(*state)
-                    })
-           .for_each(|x| result.push(x));
-    result
 }
 
 // TODO: "In practice, we would compute a complete outer product by
