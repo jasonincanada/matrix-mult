@@ -59,7 +59,7 @@ fn go(    c     : i32,
 
         // 2. Differences: build the differences vector D
         let elems = pointers.iter().map(|(elem,_)| *elem);
-        let diffs: Vec<(usize,i32)> = take_diffs(elems);
+        let diffs: Vec<(usize,i32)> = take_diffs(elems).enumerate().collect();
 
         // 3. Recursion: the recursive step, return D'
         let recursed: Vec<(usize,i32)> = go(c, diffs);
@@ -99,29 +99,45 @@ fn group_indices_by_elem(indexed: Vec<(usize,i32)>) -> Vec<(i32,Vec<usize>)>
     result
 }
 
-// copy the first element of an i32 iterator then take the diffs
-// between subsequent pairs of elements
-fn take_diffs<I>(mut iter: I) -> Vec<(usize,i32)>
+
+/* TakeDiffs iterator */
+
+// wrap an iterator of integers and return the first one as-is, then differences
+// between the subsequent pairs of integers
+struct TakeDiffs<I: Iterator<Item=i32>> {
+    iter    : I,           // the underlying iterator of i32s
+    previous: Option<i32>, // remember the last number we saw
+}
+
+impl<I> Iterator for TakeDiffs<I>
 where
     I: Iterator<Item=i32>
 {
-    let mut diffs: Vec<(usize,i32)> = Vec::new();
+    type Item = i32;
 
-    if let Some(first) = iter.next() {
-        // copy the first element
-        diffs.push((0, first));
-
-        let mut i = 1;
-
-        // take diffs of the rest
-        let mut prev = first;
-        for num in iter {
-            diffs.push((i, num - prev));
-            prev = num;
-            i += 1;
+    fn next(&mut self) -> Option<i32> {
+        match self.iter.next() {
+            Some(int) => {
+                match self.previous {
+                    Some(prev) => { self.previous = Some(int); Some(int - prev) },
+                    None       => { self.previous = Some(int); Some(int)        }
+                }
+            },
+            None => None
         }
     }
-    diffs
+}
+
+// copy the first element of an i32 iterator then take the diffs
+// between subsequent pairs of elements
+fn take_diffs<I>(iter: I) -> TakeDiffs<I>
+where
+    I: Iterator<Item=i32>
+{
+    TakeDiffs {
+        iter,
+        previous: None
+    }
 }
 
 // https://chat.openai.com/share/a383c128-503f-476c-a8b7-883f92e4bb5d
@@ -176,29 +192,29 @@ mod tests {
     #[test]
     fn test_diff_vec_normal() {
         let v = vec![1, 2, 4, 7, 11, 16];
-        let diff = take_diffs(v.into_iter());
-        assert_eq!(diff, vec![(0,1), (1,1), (2,2), (3,3), (4,4), (5,5)]);
+        let diff: Vec<i32> = take_diffs(v.into_iter()).collect();
+        assert_eq!(diff, vec![1,1,2,3,4,5]);
     }
 
     #[test]
     fn test_diff_vec_empty() {
         let v: Vec<i32> = Vec::new();
-        let diff = take_diffs(v.into_iter());
+        let diff: Vec<i32> = take_diffs(v.into_iter()).collect();
         assert_eq!(diff, Vec::new());
     }
 
     #[test]
     fn test_diff_vec_single_element() {
         let v = vec![10];
-        let diff = take_diffs(v.into_iter());
-        assert_eq!(diff, vec![(0,10)]);
+        let diff: Vec<i32> = take_diffs(v.into_iter()).collect();
+        assert_eq!(diff, vec![10]);
     }
 
     #[test]
     fn test_diff_vec_negatives() {
         let v = vec![5, -3, -8, 1];
-        let diff = take_diffs(v.into_iter());
-        assert_eq!(diff, vec![(0,5), (1,-8), (2,-5), (3,9)]);
+        let diff: Vec<i32> = take_diffs(v.into_iter()).collect();
+        assert_eq!(diff, vec![5,-8,-5,9]);
     }
 
     #[test]
