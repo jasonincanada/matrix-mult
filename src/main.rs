@@ -59,13 +59,14 @@ fn go(    c     : i32,
 
         // 2. Differences: build the differences vector D
         let elems = pointers.iter().map(|(elem,_)| *elem);
-        let diffs: Vec<i32> = take_diffs(elems);
+        let diffs: Vec<(usize,i32)> = take_diffs(elems);
 
         // 3. Recursion: the recursive step, return D'
-        let recursed: Vec<i32> = scalar_mult(c, diffs);
+        let recursed: Vec<(usize,i32)> = go(c, diffs);
 
         // 4. Accumulate: build the vector S' (scanl1 (+) recursed)
-        let cs: Vec<i32> = accumulate(recursed);
+        let elems = recursed.into_iter().map(|(_,elem)| elem);
+        let cs: Vec<i32> = accumulate(elems);
 
         // 5. Follow pointers: populate the final, scaled vector V' from elements of S'
         //    situating them according to the original pointer map we built
@@ -100,37 +101,40 @@ fn group_indices_by_elem(indexed: Vec<(usize,i32)>) -> Vec<(i32,Vec<usize>)>
 
 // copy the first element of an i32 iterator then take the diffs
 // between subsequent pairs of elements
-fn take_diffs<I>(mut iter: I) -> Vec<i32>
+fn take_diffs<I>(mut iter: I) -> Vec<(usize,i32)>
 where
     I: Iterator<Item=i32>
 {
-    let mut diffs: Vec<i32> = Vec::new();
+    let mut diffs: Vec<(usize,i32)> = Vec::new();
 
     if let Some(first) = iter.next() {
         // copy the first element
-        diffs.push(first);
+        diffs.push((0, first));
+
+        let mut i = 1;
 
         // take diffs of the rest
         let mut prev = first;
         for num in iter {
-            diffs.push(num - prev);
+            diffs.push((i, num - prev));
             prev = num;
+            i += 1;
         }
     }
     diffs
 }
 
 // https://chat.openai.com/share/a383c128-503f-476c-a8b7-883f92e4bb5d
-fn accumulate(vector: Vec<i32>) -> Vec<i32> {
+fn accumulate<I>(numbers: I) -> Vec<i32>
+where
+    I: Iterator<Item=i32>
+{
     let mut result: Vec<i32> = Vec::new();
-
-    vector.iter()
-          .scan(0, |state, &x| {
-                       *state += x;
-                       Some(*state)
-                   })
-          .for_each(|x| result.push(x));
-
+    numbers.scan(0, |state, el| {
+                        *state += el;
+                        Some(*state)
+                    })
+           .for_each(|x| result.push(x));
     result
 }
 
@@ -173,7 +177,7 @@ mod tests {
     fn test_diff_vec_normal() {
         let v = vec![1, 2, 4, 7, 11, 16];
         let diff = take_diffs(v.into_iter());
-        assert_eq!(diff, vec![1, 1, 2, 3, 4, 5]);
+        assert_eq!(diff, vec![(0,1), (1,1), (2,2), (3,3), (4,4), (5,5)]);
     }
 
     #[test]
@@ -187,21 +191,21 @@ mod tests {
     fn test_diff_vec_single_element() {
         let v = vec![10];
         let diff = take_diffs(v.into_iter());
-        assert_eq!(diff, vec![10]);
+        assert_eq!(diff, vec![(0,10)]);
     }
 
     #[test]
     fn test_diff_vec_negatives() {
         let v = vec![5, -3, -8, 1];
         let diff = take_diffs(v.into_iter());
-        assert_eq!(diff, vec![5, -8, -5, 9]);
+        assert_eq!(diff, vec![(0,5), (1,-8), (2,-5), (3,9)]);
     }
 
     #[test]
     fn test_scanl() {
-        assert_eq!(accumulate(vec![1, 2, 3, 4]), vec![1, 3, 6, 10]);
-        assert_eq!(accumulate(vec![1, 1, 1, 1]), vec![1, 2, 3, 4]);
-        assert_eq!(accumulate(vec![3, -2, 5, -1]), vec![3, 1, 6, 5]);
-        assert_eq!(accumulate(vec![]), vec![]);
+        assert_eq!(accumulate(vec![1, 2, 3, 4].into_iter()), vec![1, 3, 6, 10]);
+        assert_eq!(accumulate(vec![1, 1, 1, 1].into_iter()), vec![1, 2, 3, 4]);
+        assert_eq!(accumulate(vec![3, -2, 5, -1].into_iter()), vec![3, 1, 6, 5]);
+        assert_eq!(accumulate(vec![].into_iter()), vec![]);
     }
 }
