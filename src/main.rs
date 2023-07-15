@@ -124,8 +124,6 @@ where
     }
 }
 
-// copy the first element of an i32 iterator then take the diffs
-// between subsequent pairs of elements
 fn take_diffs<I>(iter: I) -> TakeDiffs<I>
 where
     I: Iterator<Item=i32>
