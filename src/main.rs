@@ -50,11 +50,11 @@ fn go(    c     : i32,
 
         // the step numbers below match the paper on page 3
 
-        // 1. Sort: sort by the element only, the order we store the pointers in doesn't matter
-        //          since they are all random-access writes in step 5
+        // 1. Sort: sort by the element only; within an element group the order we store the
+        //          pointers doesn't matter since they are all random-access writes in step 5
         vector.sort_by(|(_,e1), (_,e2)| e1.cmp(e2));
 
-        // build a map from each element to a list of places it occurred in the vector
+        // build a map from each distinct element to a list of places it occurred in the vector
         let pointers: Vec<(i32, Vec<usize>)> = group_indices_by_elem(vector);
 
         // 2. Differences: build the differences vector D
