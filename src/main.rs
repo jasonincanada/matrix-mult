@@ -70,15 +70,11 @@ fn go(    c     : i32,
 
         // 5. Follow pointers: populate the final, scaled vector V' from elements of S'
         //    situating them according to the original pointer map we built
-        let mut scaled: Vec<(usize,i32)> =
-            (0..len as i32)
-                .enumerate()
-                .collect();
+        let mut scaled: Vec<(usize,i32)> = vec![ (0,0); len ];
 
         for (k, (_, ps)) in pointers.into_iter().enumerate() {
             for p in ps {
-                let (i, _) = scaled[p];
-                scaled[p] = (i, cs[k]);
+                scaled[p] = (p, cs[k]);
             }
         }
 
