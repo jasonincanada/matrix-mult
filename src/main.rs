@@ -66,7 +66,7 @@ fn go(    c     : i32,
 
         // 4. Accumulate: build the vector S' (scanl1 (+) recursed)
         let elems = recursed.into_iter().map(|(_,elem)| elem);
-        let cs: Vec<i32> = accumulate(elems);
+        let cs: Vec<i32> = accumulate(elems).collect();
 
         // 5. Follow pointers: populate the final, scaled vector V' from elements of S'
         //    situating them according to the original pointer map we built
@@ -92,20 +92,6 @@ fn group_indices_by_elem(indexed: Vec<(usize,i32)>) -> Vec<(i32,Vec<usize>)>
             _                             => result.push((elem, vec![i])),
         }
     }
-    result
-}
-
-// https://chat.openai.com/share/a383c128-503f-476c-a8b7-883f92e4bb5d
-fn accumulate<I>(numbers: I) -> Vec<i32>
-where
-    I: Iterator<Item=i32>
-{
-    let mut result: Vec<i32> = Vec::new();
-    numbers.scan(0, |state, el| {
-                        *state += el;
-                        Some(*state)
-                    })
-           .for_each(|x| result.push(x));
     result
 }
 
@@ -149,6 +135,43 @@ where
         previous: None
     }
 }
+
+
+/* Accumulate iterator */
+
+// wrap an iterator of integers and return the running total as a new iterator
+struct Accumulate<I: Iterator<Item=i32>> {
+    iter: I,   // the underlying iterator of i32s
+    sum : i32, // keep track of the sum between calls to next()
+}
+
+impl<I> Iterator for Accumulate<I>
+where
+    I: Iterator<Item=i32>
+{
+    type Item = i32;
+
+    fn next(&mut self) -> Option<i32> {
+        match self.iter.next() {
+            Some(int) => {
+                self.sum += int;
+                Some(self.sum)
+            },
+            None => None
+        }
+    }
+}
+
+fn accumulate<I>(iter: I) -> Accumulate<I>
+where
+    I: Iterator<Item=i32>
+{
+    Accumulate {
+        iter,
+        sum: 0
+    }
+}
+
 
 // TODO: "In practice, we would compute a complete outer product by
 // multiplying V by n different constants, of which 5 was just
@@ -215,9 +238,9 @@ mod tests {
 
     #[test]
     fn test_scanl() {
-        assert_eq!(accumulate(vec![1, 2, 3, 4].into_iter()), vec![1, 3, 6, 10]);
-        assert_eq!(accumulate(vec![1, 1, 1, 1].into_iter()), vec![1, 2, 3, 4]);
-        assert_eq!(accumulate(vec![3, -2, 5, -1].into_iter()), vec![3, 1, 6, 5]);
-        assert_eq!(accumulate(vec![].into_iter()), vec![]);
+        assert_eq!(accumulate(vec![1, 2, 3, 4].into_iter()).collect::<Vec<_>>(), vec![1, 3, 6, 10]);
+        assert_eq!(accumulate(vec![1, 1, 1, 1].into_iter()).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
+        assert_eq!(accumulate(vec![3, -2, 5, -1].into_iter()).collect::<Vec<_>>(), vec![3, 1, 6, 5]);
+        assert_eq!(accumulate(vec![].into_iter()).collect::<Vec<_>>(), vec![]);
     }
 }
