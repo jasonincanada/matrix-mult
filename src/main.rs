@@ -116,8 +116,8 @@ fn down(    vector: Vec<i32>,
     let diffs: Vec<i32> = take_diffs(elems).collect();
 
     steps.push(StepState {
-                    len: vector.len(),
-                    pointers
+                   len: vector.len(),
+                   pointers
                });
 
     down(diffs, steps)
@@ -162,14 +162,14 @@ struct StepState
     pointers: PointersAndShifts
 }
 
-// do a scanl (+) in-place mutably
+// do a scanl1 (+) in-place mutably
 fn accumulate(vec: &mut Vec<i32>) {
     for i in 1 .. vec.len() {
         vec[i] += vec[i-1];
     }
 }
 
-// shift off the rightmost zeros end remember how many there were
+// shift off the rightmost zeros and remember how many there were
 // https://chat.openai.com/share/a4c49643-8b14-44bb-a8e6-3b81bfe10e0c
 fn align(elem: i32) -> (i32, u32) {
     if elem == 0 {
