@@ -157,7 +157,7 @@ struct StepState
     // length of the vector at the start of the step
     len: usize,
 
-    // record of the operations that sorted, de-duplicated, and right-shifted the elements of the vector
+    // record of the operations that shifted, sorted, and de-duplicated the elements of the vector
     // in the down() phase, so we can reverse them in the up() phase when generating the outer products
     pointers: PointersAndShifts
 }
