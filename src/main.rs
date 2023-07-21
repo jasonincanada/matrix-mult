@@ -92,13 +92,13 @@ fn down(    vector: Vec<i32>,
         return (vector[0], steps)
     }
 
+    // call align on each element, which shifts off the rightmost zero bits, keeping track
+    // of the resulting integer (i32) and the number of zero bits shifted off (u32), then
     // use enumerate() to pair up each element with its location (usize) in the vector,
-    // then call align on the element, which shifts off the rightmost zero bits, keeping
-    // track of the resulting integer (i32) and the number of zero bits shifted off (u32)
     let mut v: Vec<(usize, (i32,u32))> =
         vector.iter()
+              .map(|elem| align(*elem))
               .enumerate()
-              .map(|(i, elem)| (i, align(*elem)))
               .collect();
 
     // the step numbers below match the paper on page 3
