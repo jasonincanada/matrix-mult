@@ -194,6 +194,45 @@ fn group_indices_by_elem(indexed: Vec<(usize,(i32,u32))>) -> Vec<(i32,Vec<(usize
 }
 
 
+/* TakeDiffs iterator */
+
+// wrap an iterator of integers and return the first one as-is, then differences
+// between the subsequent pairs of integers
+struct TakeDiffs<I: Iterator<Item=i32>> {
+    iter    : I,           // the underlying iterator of i32s
+    previous: Option<i32>, // remember the last number we saw
+}
+
+impl<I> Iterator for TakeDiffs<I>
+where
+    I: Iterator<Item=i32>
+{
+    type Item = i32;
+
+    fn next(&mut self) -> Option<i32> {
+        match self.iter.next() {
+            Some(int) => {
+                match self.previous {
+                    Some(prev) => { self.previous = Some(int); Some(int - prev) },
+                    None       => { self.previous = Some(int); Some(int)        }
+                }
+            },
+            None => None
+        }
+    }
+}
+
+fn take_diffs<I>(iter: I) -> TakeDiffs<I>
+where
+    I: Iterator<Item=i32>
+{
+    TakeDiffs {
+        iter,
+        previous: None
+    }
+}
+
+
 /* m-by-n Matrices */
 
 #[derive(Debug)]
@@ -261,45 +300,6 @@ fn zeros(rows: usize,
         elems: vec![ vec![0; cols]; rows ],
         rows,
         cols
-    }
-}
-
-
-/* TakeDiffs iterator */
-
-// wrap an iterator of integers and return the first one as-is, then differences
-// between the subsequent pairs of integers
-struct TakeDiffs<I: Iterator<Item=i32>> {
-    iter    : I,           // the underlying iterator of i32s
-    previous: Option<i32>, // remember the last number we saw
-}
-
-impl<I> Iterator for TakeDiffs<I>
-where
-    I: Iterator<Item=i32>
-{
-    type Item = i32;
-
-    fn next(&mut self) -> Option<i32> {
-        match self.iter.next() {
-            Some(int) => {
-                match self.previous {
-                    Some(prev) => { self.previous = Some(int); Some(int - prev) },
-                    None       => { self.previous = Some(int); Some(int)        }
-                }
-            },
-            None => None
-        }
-    }
-}
-
-fn take_diffs<I>(iter: I) -> TakeDiffs<I>
-where
-    I: Iterator<Item=i32>
-{
-    TakeDiffs {
-        iter,
-        previous: None
     }
 }
 
