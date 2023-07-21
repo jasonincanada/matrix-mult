@@ -67,10 +67,17 @@ fn outer_product(col: &Vec<i32>,
     let mut rows: Vec<Vec<i32>> = vec![];
 
     for c in col {
-        // the bottom half of Figure 1: start with the element left over from the recursive down() phase,
-        // multiply it by this column element c, then recursively expand it back to its full row width
-        let row = up(&steps, vec![c*last_element]);
-        rows.push(row);
+        match c {
+            0 => rows.push( vec![0; row.len()] ),  // multiplying by 0 makes a row of all zeros
+            1 => rows.push( row.clone() ),         // multiplying by 1 leaves the row unchanged
+
+            c => {
+                // the bottom half of Figure 1: start with the element left over from the recursive down() phase,
+                // multiply it by this column element c, then recursively expand it back to its full row width
+                let row = up(&steps, vec![c*last_element]);
+                rows.push(row);
+            }
+        }
     }
 
     Matrix {
