@@ -54,6 +54,11 @@ fn outer_product(col: &Vec<i32>,
 {
     let steps: Vec<StepState> = vec![];
 
+    // if the col or row is all zeroes, the outer product will be a matrix of zeros
+    if all_zeros(col) || all_zeros(row) {
+        return zeros(col.len(), row.len())
+    }
+
     // the top half of Figure 1: recursively drill down() to the base case,
     // remembering the transformations along the way in the steps vector
     let (last_element, mut steps) = down(row.clone(), steps);
@@ -120,10 +125,17 @@ fn down(    vector: Vec<i32>,
 
     // 2. Differences: build the differences vector D
     let elems = pointers.iter().map(|(elem,_)| *elem);
-    let diffs: Vec<i32> = take_diffs(elems).collect();
+    let mut diffs: Vec<i32> = take_diffs(elems).collect();
+
+    let has_zeros = diffs[0] == 0;
+
+    if has_zeros {
+        diffs.remove(0);
+    }
 
     steps.push(StepState {
                    len: vector.len(),
+                   has_zeros,
                    pointers
                });
 
@@ -139,6 +151,10 @@ fn up(    steps: &[StepState],
 
     // 4. Accumulate: build the vector S' in place
     accumulate(&mut vec);
+
+    if steps[0].has_zeros {
+        vec.insert(0, 0);
+    }
 
     // 5. Follow Pointers: populate the final, scaled vector V' from elements of S'
     //    situating and unshifting them according to the original pointer map we built
@@ -163,6 +179,9 @@ struct StepState
 {
     // length of the vector at the start of the step
     len: usize,
+
+    // if there are zeros in the original row, this will be true for the first step
+    has_zeros: bool,
 
     // record of the operations that shifted, sorted, and de-duplicated the elements of the vector
     // in the down() phase, so we can reverse them in the up() phase when generating the outer products
@@ -198,6 +217,11 @@ fn group_indices_by_elem(indexed: Vec<(usize,(i32,u32))>) -> Vec<(i32,Vec<(usize
         }
     }
     result
+}
+
+// true if all elements in the slice are equal to 0
+fn all_zeros(nums: &[i32]) -> bool {
+    nums.iter().all(|n| *n == 0)
 }
 
 
@@ -380,6 +404,34 @@ mod tests {
         let (aligned_elem, shifts) = align(16); // 16 is 10000 in binary
         assert_eq!(aligned_elem, 1);
         assert_eq!(shifts, 4);
+    }
+
+    #[test]
+    fn test_outer_product_zero_one_scalars() {
+        let col = vec![0,1,2];
+        let row = vec![0,1,2,3];
+
+        assert_eq!(vec![ vec![0,0,0,0],
+                         vec![0,1,2,3],
+                         vec![0,2,4,6] ], outer_product(&col, &row).elems);
+    }
+
+    #[test]
+    fn test_outer_product_zero_row() {
+        let col = vec![0,1];
+        let row = vec![0,0,0,0];
+
+        assert_eq!(vec![ vec![0,0,0,0],
+                         vec![0,0,0,0] ], outer_product(&col, &row).elems);
+    }
+
+    #[test]
+    fn test_outer_product_one_non_zero() {
+        let col = vec![0,1];
+        let row = vec![0,0,2,0];
+
+        assert_eq!(vec![ vec![0,0,0,0],
+                         vec![0,0,2,0] ], outer_product(&col, &row).elems);
     }
 
     // chatgpt 4.0
