@@ -107,7 +107,7 @@ fn down(    vector: Vec<i32>,
     // call align on each element, which shifts off the rightmost zero bits, keeping track
     // of the resulting integer (i32) and the number of zero bits shifted off (u32), then
     // use enumerate() to pair up each element with its location (usize) in the vector,
-    let mut v: Vec<(usize, (i32,u32,bool))> =
+    let mut v: Vec<(usize, AlignedInt)> =
         vector.iter()
               .map(|elem| align(*elem))
               .enumerate()
@@ -117,7 +117,7 @@ fn down(    vector: Vec<i32>,
 
     // 1. Sort: sort by the element only; within an element group the order we store the
     //          pointers doesn't matter since they are all random-access writes in step 5
-    v.sort_by(|(_,(e1,_,_)), (_,(e2,_,_))| e1.cmp(e2));
+    v.sort_by(|(_,(e1,_)), (_,(e2,_))| e1.cmp(e2));
 
     // build a map from each distinct element to a list of places it occurred in the vector,
     // and how many bits were shifted off (maybe 0) at each location
@@ -161,7 +161,7 @@ fn up(    steps: &[StepState],
     let mut scaled: Vec<i32> = vec![ 0; steps[0].len ];
 
     for (k, (_, ps)) in steps[0].pointers.iter().enumerate() {
-        for &(p, shift, is_negative) in ps {
+        for &(p, (shift, is_negative)) in ps {
             let sign = if is_negative { -1 } else { 1 };
             scaled[p] = (vec[k] << shift) * sign;
         }
@@ -171,9 +171,16 @@ fn up(    steps: &[StepState],
     up(&steps[1..], scaled)
 }
 
-// map of distinct elements to their locations (usize) in the vector and the number (u32) of zero bits
-// that were shifted off to the right to divide out powers of two, and whether the number was negative (bool)
-type PointersAndShifts = Vec<(i32, Vec<(usize,u32,bool)>)>;
+// map of distinct elements to their locations in the vector and the number of zero bits that were
+// shifted off to the right (to divide out powers of two), and whether the number was negative
+type PointersAndShifts = Vec<(i32, Vec<PointerShift>)>;
+
+type ShiftAndSign = (u32, bool);
+
+// after processing, the align() function leaves a non-negative odd number (all twos were divided out)
+// paired with the number of right shifts and the +/- sign, used later to rebuild the original number
+type AlignedInt   = (i32  , ShiftAndSign);
+type PointerShift = (usize, ShiftAndSign);
 
 // each call to down() except the final one generates a StepState record to track what it did
 struct StepState
@@ -198,25 +205,25 @@ fn accumulate(vec: &mut Vec<i32>) {
 
 // shift off the rightmost zeros and remember how many there were, and remember if it was a negative number
 // https://chat.openai.com/share/a4c49643-8b14-44bb-a8e6-3b81bfe10e0c
-fn align(elem: i32) -> (i32, u32, bool) {
+fn align(elem: i32) -> AlignedInt {
     if elem == 0 {
-        (elem, 0, false)
+        (elem, (0, false))
     } else {
         let shifts      = elem.trailing_zeros();
         let is_negative = elem < 0;
 
-        (elem.abs() >> shifts, shifts, is_negative)
+        (elem.abs() >> shifts, (shifts, is_negative))
     }
 }
 
 // https://chat.openai.com/share/794ee6d1-868c-4417-bb31-c9bce2907273
-fn group_indices_by_elem(indexed: Vec<(usize,(i32,u32,bool))>) -> Vec<(i32,Vec<(usize,u32,bool)>)>
+fn group_indices_by_elem(indexed: Vec<(usize,AlignedInt)>) -> Vec<(i32,Vec<PointerShift>)>
 {
-    let mut result: Vec<(i32,Vec<(usize,u32,bool)>)> = vec![];
-    for (i, (elem,shift,is_negative)) in indexed {
+    let mut result: Vec<(i32,Vec<PointerShift>)> = vec![];
+    for (i, (elem,(shift,is_negative))) in indexed {
         match result.last_mut() {
-            Some((el, is)) if *el == elem => is.push((i,shift,is_negative)),
-            _                             => result.push((elem, vec![(i,shift,is_negative)])),
+            Some((el, is)) if *el == elem => is.push((i,(shift,is_negative))),
+            _                             => result.push((elem, vec![(i,(shift,is_negative))])),
         }
     }
     result
@@ -351,12 +358,12 @@ mod tests {
 
     #[test]
     fn test_group() {
-        assert_eq!(vec![(1, vec![(1,0,false),(3,0,true)]),
-                        (3, vec![(0,0,false)]),
-                        (4, vec![(2,0,false)]),
-                        (5, vec![(4,0,false)]),
-                        (9, vec![(5,0,false)]),],
-                    group_indices_by_elem(vec![(1,(1,0,false)), (3,(1,0,true)), (0,(3,0,false)), (2,(4,0,false)), (4,(5,0,false)), (5,(9,0,false))]));
+        assert_eq!(vec![(1, vec![(1,(0,false)),(3,(0,true))]),
+                        (3, vec![(0,(0,false))]),
+                        (4, vec![(2,(0,false))]),
+                        (5, vec![(4,(0,false))]),
+                        (9, vec![(5,(0,false))]),],
+                    group_indices_by_elem(vec![(1,(1,(0,false))), (3,(1,(0,true))), (0,(3,(0,false))), (2,(4,(0,false))), (4,(5,(0,false))), (5,(9,(0,false)))]));
     }
 
     #[test]
@@ -390,7 +397,7 @@ mod tests {
     /* align(), three tests from chatgpt 4.0 */
     #[test]
     fn test_align_zero() {
-        let (aligned_elem, shifts, is_negative) = align(0);
+        let (aligned_elem, (shifts, is_negative)) = align(0);
         assert_eq!(aligned_elem, 0);
         assert_eq!(shifts, 0);
         assert_eq!(is_negative, false);
@@ -398,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_align_no_trailing_zeros() {
-        let (aligned_elem, shifts, is_negative) = align(7); // 7 is 111 in binary
+        let (aligned_elem, (shifts, is_negative)) = align(7); // 7 is 111 in binary
         assert_eq!(aligned_elem, 7);
         assert_eq!(shifts, 0);
         assert_eq!(is_negative, false);
@@ -406,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_align_trailing_zeros() {
-        let (aligned_elem, shifts, is_negative) = align(16); // 16 is 10000 in binary
+        let (aligned_elem, (shifts, is_negative)) = align(16); // 16 is 10000 in binary
         assert_eq!(aligned_elem, 1);
         assert_eq!(shifts, 4);
         assert_eq!(is_negative, false);
@@ -414,7 +421,7 @@ mod tests {
 
     #[test]
     fn test_align_trailing_zeros_negative() {
-        let (aligned_elem, shifts, is_negative) = align(-16); // 16 is 10000 in binary
+        let (aligned_elem, (shifts, is_negative)) = align(-16); // 16 is 10000 in binary
         assert_eq!(aligned_elem, 1);
         assert_eq!(shifts, 4);
         assert_eq!(is_negative, true);
