@@ -119,12 +119,12 @@ fn down(    vector: Vec<i32>,
     //          pointers doesn't matter since they are all random-access writes in step 5
     v.sort_by(|(_,(e1,_)), (_,(e2,_))| e1.cmp(e2));
 
-    // build a map from each distinct element to a list of places it occurred in the vector,
-    // and how many bits were shifted off (maybe 0) at each location
-    let pointers: PointersAndShifts = group_indices_by_elem(v);
+    // build a map from each distinct aligned int to a list of places it occurred in the vector,
+    // and how to reconstruct the original number from the aligned one
+    let reconstruction_map: ReconstructionMap = group_indices_by_elem(v);
 
     // 2. Differences: build the differences vector D
-    let elems = pointers.iter().map(|(elem,_)| *elem);
+    let elems = reconstruction_map.iter().map(|(elem,_)| *elem);
     let mut diffs: Vec<i32> = take_diffs(elems).collect();
 
     let has_zeros = diffs[0] == 0;
@@ -136,7 +136,7 @@ fn down(    vector: Vec<i32>,
     steps.push(StepState {
                    len: vector.len(),
                    has_zeros,
-                   pointers
+                   reconstruction_map
                });
 
     down(diffs, steps)
@@ -160,7 +160,7 @@ fn up(    steps: &[StepState],
     //    situating and unshifting them according to the original pointer map we built
     let mut scaled: Vec<i32> = vec![ 0; steps[0].len ];
 
-    for (k, (_, ps)) in steps[0].pointers.iter().enumerate() {
+    for (k, (_, ps)) in steps[0].reconstruction_map.iter().enumerate() {
         for &(p, (shift, is_negative)) in ps {
             let sign = if is_negative { -1 } else { 1 };
             scaled[p] = (vec[k] << shift) * sign;
@@ -171,16 +171,15 @@ fn up(    steps: &[StepState],
     up(&steps[1..], scaled)
 }
 
-// map of distinct elements to their locations in the vector and the number of zero bits that were
-// shifted off to the right (to divide out powers of two), and whether the number was negative
-type PointersAndShifts = Vec<(i32, Vec<PointerShift>)>;
-
-type ShiftAndSign = (u32, bool);
+// map from the distinct integers produced by the align() call to their locations in the vector
+// and how to reconstruct the original integer
+type ReconstructionMap = Vec<(i32, Vec<WhereAndHow>)>;
 
 // after processing, the align() function leaves a non-negative odd number (all twos were divided out)
 // paired with the number of right shifts and the +/- sign, used later to rebuild the original number
 type AlignedInt   = (i32  , ShiftAndSign);
-type PointerShift = (usize, ShiftAndSign);
+type WhereAndHow  = (usize, ShiftAndSign);
+type ShiftAndSign = (u32, bool);
 
 // each call to down() except the final one generates a StepState record to track what it did
 struct StepState
@@ -193,7 +192,7 @@ struct StepState
 
     // record of the operations that shifted, sorted, and de-duplicated the elements of the vector
     // in the down() phase, so we can reverse them in the up() phase when generating the outer products
-    pointers: PointersAndShifts
+    reconstruction_map: ReconstructionMap
 }
 
 // do a scanl1 (+) in-place mutably
@@ -217,9 +216,9 @@ fn align(elem: i32) -> AlignedInt {
 }
 
 // https://chat.openai.com/share/794ee6d1-868c-4417-bb31-c9bce2907273
-fn group_indices_by_elem(indexed: Vec<(usize,AlignedInt)>) -> Vec<(i32,Vec<PointerShift>)>
+fn group_indices_by_elem(indexed: Vec<(usize,AlignedInt)>) -> Vec<(i32,Vec<WhereAndHow>)>
 {
-    let mut result: Vec<(i32,Vec<PointerShift>)> = vec![];
+    let mut result: Vec<(i32,Vec<WhereAndHow>)> = vec![];
     for (i, (elem,(shift,is_negative))) in indexed {
         match result.last_mut() {
             Some((el, is)) if *el == elem => is.push((i,(shift,is_negative))),
