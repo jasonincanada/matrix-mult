@@ -160,9 +160,12 @@ fn up(    steps: &[StepState],
     let mut scaled: Vec<i32> = vec![ 0; steps[0].len ];
 
     for (k, (_, ps)) in steps[0].reconstruction_map.iter().enumerate() {
-        for &(p, (shift, is_negative)) in ps {
-            let sign = if is_negative { -1 } else { 1 };
-            scaled[p] = (vec[k] << shift) * sign;
+        for &(p, (shift, is_negative)) in ps {            
+            scaled[p] = vec[k] << shift;
+
+            if is_negative {
+                scaled[p] *= -1;
+            }
         }
     }
 
