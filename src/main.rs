@@ -159,12 +159,12 @@ fn up(    steps: &[StepState],
     //    situating and unshifting them according to the reconstruction map we built
     let mut scaled: Vec<i32> = vec![ 0; steps[0].len ];
 
-    for (k, (_, ps)) in steps[0].reconstruction_map.iter().enumerate() {
-        for &(p, (shift, is_negative)) in ps {            
-            scaled[p] = vec[k] << shift;
+    for (j, (_, rs)) in steps[0].reconstruction_map.iter().enumerate() {
+        for &(i, (shift, is_negative)) in rs {            
+            scaled[i] = vec[j] << shift;
 
             if is_negative {
-                scaled[p] *= -1;
+                scaled[i] *= -1;
             }
         }
     }
