@@ -155,6 +155,18 @@ where
 ```
 
 ```rust
+// clippy helped with this
+        if c == 0 {
+            zeros.push(i);
+        } else if c < 0 {
+            negatives.push(i);
+            ints.push(-c);
+        } else {
+            ints.push(c);
+        }
+```
+
+```rust
 #[cfg(test)]
 mod tests {
     use super::scalar_mult;

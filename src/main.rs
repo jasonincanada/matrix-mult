@@ -59,9 +59,13 @@ fn outer_product(col: &Vec<i32>,
         return zeros(col.len(), row.len())
     }
 
+    // locate the zeros and negatives in the row, and construct a new row from the old one
+    // but with the zeros missing and all the negative signs removed
+    let (zeros, negatives, row2) = prepare(row);
+
     // the top half of Figure 1: recursively drill down() to the base case,
     // remembering the transformations along the way in the steps vector
-    let (last_element, mut steps) = down(row.clone(), steps);
+    let (last_element, mut steps) = down(row2, steps);
     steps.reverse();
 
     // we can now reuse the information in steps for each element of the column vector.
@@ -79,7 +83,16 @@ fn outer_product(col: &Vec<i32>,
             c => {
                 // the bottom half of Figure 1: start with the element left over from the recursive down() phase,
                 // multiply it by this column element c, then recursively expand it back to its full row width
-                let row = up(&steps, vec![c*last_element]);
+                let mut row = up(&steps, vec![c*last_element]);
+
+                // add back in the zeros and negative signs
+                for i in &zeros {
+                    row.insert(*i, 0);
+                }
+                for i in &negatives {
+                    row[*i] *= -1;
+                }
+
                 rows.push(row);
             }
         }
@@ -125,16 +138,10 @@ fn down(    vector: Vec<i32>,
 
     // 2. Differences: build the differences vector D
     let elems = reconstruction_map.iter().map(|(elem,_)| *elem);
-    let mut diffs: Vec<i32> = take_diffs(elems).collect();
-
-    let has_zeros = diffs[0] == 0;
-    if has_zeros {
-        diffs.remove(0);
-    }
+    let diffs: Vec<i32> = take_diffs(elems).collect();
 
     steps.push(StepState {
                    len: vector.len(),
-                   has_zeros,
                    reconstruction_map
                });
 
@@ -151,21 +158,13 @@ fn up(    steps: &[StepState],
     // 4. Accumulate: build the vector S' in place
     accumulate(&mut vec);
 
-    if steps[0].has_zeros {
-        vec.insert(0, 0);
-    }
-
     // 5. Follow Pointers: populate the final, scaled vector V' from elements of S'
     //    situating and unshifting them according to the reconstruction map we built
     let mut scaled: Vec<i32> = vec![ 0; steps[0].len ];
 
     for (j, (_, rs)) in steps[0].reconstruction_map.iter().enumerate() {
-        for &(i, (shift, is_negative)) in rs {            
+        for &(i, shift) in rs {            
             scaled[i] = vec[j] << shift;
-
-            if is_negative {
-                scaled[i] *= -1;
-            }
         }
     }
 
@@ -173,50 +172,65 @@ fn up(    steps: &[StepState],
     up(&steps[1..], scaled)
 }
 
-// map from the distinct integers produced by the align() call to their locations in the vector
-// and how to reconstruct the original integers
-type ReconstructionMap = Vec<(i32, Vec<WhereAndHow>)>;
+// map from the distinct integers produced by the align() call to their locations in
+// the vector and how many zero bits were shifted off at each location
+type ReconstructionMap = Vec<(i32, Vec<WhereAndShift>)>;
 
-// after processing, the align() function leaves a non-negative odd number (all twos were divided out)
-// paired with the number of right shifts and the +/- sign, used later to build the scaled number
-type AlignedInt   = (i32  , ShiftAndSign);
-type WhereAndHow  = (usize, ShiftAndSign);
-type ShiftAndSign = (u32, bool);
+// after processing, the align() function leaves an odd number (all twos were divided out)
+// paired with the number of right shifts, used later to build the scaled number
+type AlignedInt    = (i32  , u32);
+type WhereAndShift = (usize, u32);
 
 // each call to down() except the final one generates a StepState record to track what it did
 struct StepState
 {
-    len      : usize, // length of the vector at the start of the step
-    has_zeros: bool,  // if there are zeros in the original row, this will be true for the first step
+    // length of the vector at the start of the step
+    len: usize,
 
     // map to build the scaled numbers from operations done to align the original ones
     reconstruction_map: ReconstructionMap 
 }
 
-// shift off the rightmost zeros and remember how many there were, and remember if it was a negative number
+// shift off the rightmost zeros and remember how many there were
 // https://chat.openai.com/share/a4c49643-8b14-44bb-a8e6-3b81bfe10e0c
 fn align(elem: i32) -> AlignedInt {
-    if elem == 0 {
-        (elem, (0, false))
-    } else {
-        let shifts      = elem.trailing_zeros();
-        let is_negative = elem < 0;
+    assert!(elem >= 0);
 
-        (elem.abs() >> shifts, (shifts, is_negative))
+    if elem == 0 {
+        (elem, 0)
+    } else {
+        let shifts = elem.trailing_zeros();
+        (elem >> shifts, shifts)
     }
 }
 
 // https://chat.openai.com/share/794ee6d1-868c-4417-bb31-c9bce2907273
 fn group_indices_by_elem(indexed: Vec<(usize,AlignedInt)>) -> ReconstructionMap
 {
-    let mut result: Vec<(i32,Vec<WhereAndHow>)> = vec![];
-    for (i, (elem,(shift,is_negative))) in indexed {
+    let mut result: Vec<(i32,Vec<WhereAndShift>)> = vec![];
+    for (i, (elem,shift)) in indexed {
         match result.last_mut() {
-            Some((el, is)) if *el == elem => is.push((i,(shift,is_negative))),
-            _                             => result.push((elem, vec![(i,(shift,is_negative))])),
+            Some((el, is)) if *el == elem => is.push((i,shift)),
+            _                             => result.push((elem, vec![(i,shift)])),
         }
     }
     result
+}
+
+fn prepare(row: &[i32]) -> (Vec<usize>, Vec<usize>, Vec<i32>) {
+    let mut zeros    : Vec<usize> = Vec::with_capacity(row.len());
+    let mut negatives: Vec<usize> = Vec::with_capacity(row.len());
+    let mut naturals : Vec<i32>   = Vec::with_capacity(row.len());
+
+    for (i, &c) in row.iter().enumerate() {
+        match c.cmp(&0) {
+            Greater => { naturals.push(c) },
+            Less    => { naturals.push(-c); negatives.push(i); },
+            Equal   => { zeros.push(i) }
+        }
+    }
+
+    (zeros, negatives, naturals)
 }
 
 // do a scanl1 (+) in-place mutably
@@ -344,7 +358,7 @@ fn zeros(rows: usize,
 
 /* Imports */
 
-use std::ops::AddAssign;
+use std::{ops::AddAssign, cmp::Ordering::*};
 
 
 /* Tests */
@@ -355,12 +369,12 @@ mod tests {
 
     #[test]
     fn test_group() {
-        assert_eq!(vec![(1, vec![(1,(0,false)),(3,(0,true))]),
-                        (3, vec![(0,(0,false))]),
-                        (4, vec![(2,(0,false))]),
-                        (5, vec![(4,(0,false))]),
-                        (9, vec![(5,(0,false))]),],
-                    group_indices_by_elem(vec![(1,(1,(0,false))), (3,(1,(0,true))), (0,(3,(0,false))), (2,(4,(0,false))), (4,(5,(0,false))), (5,(9,(0,false)))]));
+        assert_eq!(vec![(1, vec![(1,0),(3,0)]),
+                        (3, vec![(0,0)]),
+                        (4, vec![(2,0)]),
+                        (5, vec![(4,0)]),
+                        (9, vec![(5,0)]),],
+                    group_indices_by_elem(vec![(1,(1,0)), (3,(1,0)), (0,(3,0)), (2,(4,0)), (4,(5,0)), (5,(9,0))]));
     }
 
     #[test]
@@ -394,35 +408,33 @@ mod tests {
     /* align(), three tests from chatgpt 4.0 */
     #[test]
     fn test_align_zero() {
-        let (aligned_elem, (shifts, is_negative)) = align(0);
+        let (aligned_elem, shifts) = align(0);
         assert_eq!(aligned_elem, 0);
         assert_eq!(shifts, 0);
-        assert_eq!(is_negative, false);
     }
 
     #[test]
     fn test_align_no_trailing_zeros() {
-        let (aligned_elem, (shifts, is_negative)) = align(7); // 7 is 111 in binary
+        let (aligned_elem, shifts) = align(7); // 7 is 111 in binary
         assert_eq!(aligned_elem, 7);
         assert_eq!(shifts, 0);
-        assert_eq!(is_negative, false);
     }
 
     #[test]
     fn test_align_trailing_zeros() {
-        let (aligned_elem, (shifts, is_negative)) = align(16); // 16 is 10000 in binary
+        let (aligned_elem, shifts) = align(16); // 16 is 10000 in binary
         assert_eq!(aligned_elem, 1);
         assert_eq!(shifts, 4);
-        assert_eq!(is_negative, false);
     }
 
+    /* test removed because align() no longer deals with negative numbers
     #[test]
     fn test_align_trailing_zeros_negative() {
-        let (aligned_elem, (shifts, is_negative)) = align(-16); // 16 is 10000 in binary
+        let (aligned_elem, shifts) = align(-16); // 16 is 10000 in binary
         assert_eq!(aligned_elem, 1);
         assert_eq!(shifts, 4);
-        assert_eq!(is_negative, true);
     }
+    */
 
     #[test]
     fn test_outer_product_zero_one_scalars() {
