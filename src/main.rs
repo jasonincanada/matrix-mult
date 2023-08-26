@@ -112,8 +112,9 @@ fn down(    vector: Vec<i32>,
         mut steps : Vec<StepState>) -> (i32, Vec<StepState>)
 {
     assert!(!vector.is_empty());
+    let len = vector.len();
 
-    if vector.len() == 1 {
+    if len == 1 {
         return (vector[0], steps)
     }
 
@@ -121,8 +122,8 @@ fn down(    vector: Vec<i32>,
     // of the resulting integer (i32) and the number of zero bits shifted off (u32), then
     // use enumerate() to pair up each element with its location (usize) in the vector,
     let mut v: Vec<(usize, AlignedInt)> =
-        vector.iter()
-              .map(|elem| align(*elem))
+        vector.into_iter()
+              .map(align)
               .enumerate()
               .collect();
 
@@ -141,7 +142,7 @@ fn down(    vector: Vec<i32>,
     let diffs: Vec<i32> = take_diffs(elems).collect();
 
     steps.push(StepState {
-                   len: vector.len(),
+                   len,
                    reconstruction_map
                });
 
