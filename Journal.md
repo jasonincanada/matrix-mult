@@ -1,3 +1,44 @@
+## 26 August 2023
+
+I wrote an iterator-based ZeroInserter, though I'm keeping it in a different file and haven't actually used it, since it is much less readable than the current solution of directly inserting the zeros at specific indices (and accepting the quadratic running time from having to push all subsequent elements down by one index).
+
+I've coded a few implementations of `Iterator` since I started using Rust last year. They are a nice tool for the task at hand, but I think Rust isn't the right language to express them. There's too much punctuation and syntactic clutter considering how simple the underlying idea is. It's possible that my use-cases have been too simple and only in sufficiently complex iterators does the substance start to outweigh the amount of code required to express it. But I think most iterators will be simple "value-add" steps in a broader pipeline of them, with minimal state to track for each, so they should be a lot more lightweight to compose than they currently are, in Rust anyway.
+
+Iterators I've written so far:
+
+**ZeroInserter** ([matrix-mult](https://github.com/jasonincanada/matrix-mult/blob/main/src/zero_inserter.rs)) - Insert zeros at specific indices in an underlying iterator of `i32`s
+
+**IntervalMerger** ([aoc-2022/day15](https://github.com/jasonincanada/aoc-2022/blob/main/days/day_15/src/main.rs#L120)) - Merge a new interval at the right spot in the underlying iterator of intervals
+
+**AngleIterator** ([kattis/toast](https://github.com/jasonincanada/kattis/blob/master/rust/toast/src/main.rs#L100)) - Produce the angles needed to check for n people sitting around a table
+
+**Repeater** ([aoc-2022/day17](https://github.com/jasonincanada/aoc-2022/blob/main/days/day_17/src/main.rs#L235)) - Wrap an iterator and return its items in a cycle forever
+
+**PairPrefixSwapper** ([kattis/spumbers2](https://github.com/jasonincanada/kattis/blob/master/rust/spumbers2/src/main.rs#L238)) - ??
+
+**FactorPair** ([leetcode/prod-except-self](https://github.com/jasonincanada/kattis/blob/master/rust/prod-except-self/src/main.rs#L42)) - ??
+
+
+## 17 August 2023
+
+https://www.youtube.com/watch?v=algDLvbl1YY&t=611s - The Dark Side of .reserve()
+https://github.com/facebook/folly/blob/main/folly/docs/FBVector.md#memory-handling
+
+
+## 16 August 2023
+
+- need a new language for iterators, Rust is suddenly too complicated or at least too much punctuation
+
+
+## 14 August 2023
+
+```haskell
+go :: [Int] -> [Usize] -> [Int]
+go ints []     = ints
+go ints (u:us) = 
+```
+
+
 ## 6 August 2023
 
 ### prepare()
